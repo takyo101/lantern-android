@@ -16,6 +16,8 @@ fi
 
 ANDROID_APP=$PWD/../app
 
+mkdir -p gen src
+
 mkdir -p $ANDROID_APP/src/org/getlantern
 mkdir -p $ANDROID_APP/src/go
 mkdir -p $ANDROID_APP/libs/armeabi-v7a

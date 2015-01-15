@@ -5,11 +5,11 @@ building a basic [flashlight][1] client library for Android devices.
 
 ## Prerequisites
 
-* An OSX or Linux box.
-* [docker][2].
-* [Android Studio][3].
-* [Go][4].
-* [GNUMake][6].
+* An OSX or Linux box
+* [docker][2]
+* [Android Studio][3]
+* [Go][4]
+* [GNUMake][6]
 
 ### Temporal hack
 
@@ -17,7 +17,7 @@ This is an experimental feature so we need to do some minor hacks in order to
 test it. We're going to work with the `experimental/lantern-android` branch of
 [flashlight-build][5]:
 
-```
+```sh
 mkdir -p $GOPATH/src/github.com/getlantern
 cd $GOPATH/src/github.com/getlantern
 git clone https://github.com/getlantern/flashlight-build.git
@@ -35,13 +35,13 @@ Set the `GOPATH` environment variable to
 the [flashlight-build][5] repository has everything we need to build the
 [flashlight][1] lightweight web proxy:
 
-```
+```sh
 export GOPATH=$GOPATH/src/github.com/getlantern/flashlight-build
 ```
 
 Now, get the `libflashlight` package using `go get`:
 
-```
+```sh
 go get github.com/getlantern/lantern-android/libflashlight
 ```
 
@@ -53,7 +53,7 @@ the `make` command.
 make
 ```
 
-This will create a new `app` subdirectory with an example android project. You
+This will create a new `app` subdirectory with an example Android project. You
 may import the contents of the `app` subdirectory into Android Studio to see it
 working.
 

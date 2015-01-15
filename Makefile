@@ -13,7 +13,15 @@ all: docker-golang-mobile .task-golang-mobile
 		gobind -lang=java github.com/getlantern/lantern-android/libflashlight/bindings > bindings/Flashlight.java
 	$$DOCKER_CLI run -v $$GOPATH/src:/src golang/mobile /bin/bash -c \ "cd /src/github.com/getlantern/lantern-android/libflashlight && ./make.bash"
 
+# clean removes temporary files, since we're using docker it may require you to
+# use "sudo make clean"
 clean:
+	rm -rf libflashlight/bin
+	rm -rf libflashlight/bindings/go_bindings
+	rm -rf libflashlight/gen
+	rm -rf libflashlight/libs
+	rm -rf libflashlight/res
+	rm -rf libflashlight/src
 	rm -f .task-*
 	rm -rf app
 

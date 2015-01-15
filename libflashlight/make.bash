@@ -26,7 +26,7 @@ mkdir -p $ANDROID_APP/libs/armeabi-v7a
 (cd $GOPATH/src/golang.org/x/mobile && cp $PWD/bind/java/Seq.java $ANDROID_APP/src/go)
 CGO_ENABLED=1 GOOS=android GOARCH=arm GOARM=7 go build -ldflags="-shared" -o $ANDROID_APP/libs/armeabi-v7a/libgojni.so
 mv ./bindings/Flashlight.java $ANDROID_APP/src/org/getlantern
-cp *.xml $ANDROID_APP
+cp AndroidManifest.xml $ANDROID_APP
 cp -r gen $ANDROID_APP
 mkdir -p $ANDROID_APP/res
 ant debug

@@ -71,15 +71,41 @@ Studio project".
 You'll be prompted with a file dialog, browse to the `app` subdirectory and
 select it. Press *OK*.
 
-![App Subdirectory](https://cloud.githubusercontent.com/assets/385670/5712859/91454204-9a7b-11e4-8227-e1372ff65ee4.png)
+![App Subdirectory](https://cloud.githubusercontent.com/assets/385670/5769230/5431dec6-9cde-11e4-82ce-d3983471a1f1.png)
 
 On the next dialog you must define a destination for the project, hit *Next*.
 
 ![Destination](https://cloud.githubusercontent.com/assets/385670/5712874/ad8265e6-9a7b-11e4-9018-671875dfdb17.png)
 
-Add a new *main activity* by right-clicking on the top most directory on the
-*Project* pane and selecting New->Activity->Blank Activity, the default values
-would be OK, click *Finish*.
+After import you may be prompted to restart Android Studio. After restarting
+make sure your `AndroidManifest.xml` looks like this:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2014 The Go Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.getlantern.example" android:versionCode="1" android:versionName="1.0">
+
+  <application android:label="Flashlight">
+    <activity android:name="org.getlantern.example.MainActivity"
+      android:label="Flashlight"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+  </application>
+  <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
+```
+
+Now add a new *main activity* by right-clicking on the top most directory on
+the *Project* pane and selecting New->Activity->Blank Activity, the default
+values would be OK, click *Finish*.
 
 ![Main Activity](https://cloud.githubusercontent.com/assets/385670/5712891/ca3573fe-9a7b-11e4-953d-d43b12fcdb62.png)
 

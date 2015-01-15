@@ -66,14 +66,22 @@ into Android Studio to see libflashlight working.
 Open [Android Studio][3] and in the welcome screen choose "Import Non-Android
 Studio project".
 
-You'll be prompted with a file dialog, browse to the app subdirectory and
+![Android Studio](https://cloud.githubusercontent.com/assets/385670/5712830/5f4cda3c-9a7b-11e4-85af-8af9d54e18c7.png)
+
+You'll be prompted with a file dialog, browse to the `app` subdirectory and
 select it. Press *OK*.
 
+![App Subdirectory](https://cloud.githubusercontent.com/assets/385670/5712859/91454204-9a7b-11e4-8227-e1372ff65ee4.png)
+
 On the next dialog you must define a destination for the project, hit *Next*.
+
+![Destination](https://cloud.githubusercontent.com/assets/385670/5712874/ad8265e6-9a7b-11e4-9018-671875dfdb17.png)
 
 Add a new *main activity* by right-clicking on the top most directory on the
 *Project* pane and selecting New->Activity->Blank Activity, the default values
 would be OK, click *Finish*.
+
+![Main Activity](https://cloud.githubusercontent.com/assets/385670/5712891/ca3573fe-9a7b-11e4-953d-d43b12fcdb62.png)
 
 Paste the following code on the `org.getlantern/example/MainActivity.java` file
 that was just added:
@@ -171,6 +179,8 @@ public class MainActivity extends Activity {
 After this new activity is added the *design view* will be active, drag two
 buttons from the *Pallete* into the screen.
 
+![Adding two buttons](https://cloud.githubusercontent.com/assets/385670/5769192/d9df19cc-9cdd-11e4-90d0-b37b6d6b3a41.png)
+
 Select the first button and look for the *id* property on the Properties pane,
 set it to *startProxyButton* and name the button accordingly. Look for the
 *onClick* property and choose the *startProxyButtonOnClick* value from the drop
@@ -184,6 +194,8 @@ device or to an ARM-based emulator.
 
 If everything goes OK, you'll have two buttons and you can start `flashlight`
 by touching the *startProxyButton*.
+
+![Deploy to a device](https://cloud.githubusercontent.com/assets/385670/5712899/db6ddb34-9a7b-11e4-8841-6b6b12e46c27.png)
 
 As long as the app is open, you'll be able to test the canonical example by
 finding the device's IP and sending it a special request:

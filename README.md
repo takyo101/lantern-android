@@ -11,7 +11,7 @@ building a basic [flashlight][1] client library for Android devices.
 * [Go][4]
 * [GNUMake][6]
 
-### Temporal hack
+### Setting up the experimental environment
 
 This is an experimental feature so we need to do some minor hacks in order to
 test it. We're going to work with the `experimental/lantern-android` branch of
@@ -25,8 +25,8 @@ cd flashlight-build
 git checkout -b experimental/lantern-android remotes/origin/experimental/lantern-android
 ```
 
-This is only a temporary hack while we wait for the required changes to hit
-upstream.
+Please note this is only a temporary hack while we wait for the required
+changes to hit upstream.
 
 ## Building the Android library
 
@@ -39,23 +39,27 @@ the [flashlight-build][5] repository has everything we need to build the
 export GOPATH=$GOPATH/src/github.com/getlantern/flashlight-build
 ```
 
-Now, get the `libflashlight` package using `go get`:
+Change directory to `$GOPATH/src/github.com/getlantern` and clone the
+`lantern-android` repository with git.
 
 ```sh
-go get github.com/getlantern/lantern-android/libflashlight
+cd $GOPATH/src/github.com/getlantern
+git clone https://github.com/getlantern/lantern-android.git
 ```
 
-Finally, change directory into
-`$GOPATH/src/github.com/getlantern/lantern-android/` and pass the build task to
-the `make` command.
+Finally, change directory into `lantern-android` and pass the build task to the
+`make` command.
 
 ```
 make
+# ...
+# BUILD SUCCESSFUL
+# Total time: 7 seconds
 ```
 
-This will create a new `app` subdirectory with an example Android project. You
-may import the contents of the `app` subdirectory into Android Studio to see it
-working.
+The `make` command will create a new `app` subdirectory that will contain an
+Android example project. You may import the contents of the `app` subdirectory
+into Android Studio to see libflashlight working.
 
 ## Testing the example project
 

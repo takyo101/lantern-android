@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"github.com/getlantern/balancer"
-	"github.com/getlantern/flashlight/globals"
 	"github.com/getlantern/fronted"
 	"io"
 	"log"
@@ -21,9 +20,8 @@ type frontedServer struct {
 
 func (s *frontedServer) dialer() *balancer.Dialer {
 	fd := fronted.NewDialer(&fronted.Config{
-		Host:    s.Host,
-		Port:    s.Port,
-		RootCAs: globals.TrustedCAs,
+		Host: s.Host,
+		Port: s.Port,
 	})
 	masqueradeQualifier := ""
 	return &balancer.Dialer{

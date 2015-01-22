@@ -19,27 +19,42 @@ type Client struct {
 	frontedServers []*frontedServer
 	ln             *Listener
 	bal            *balancer.Balancer
+
+	balInitialized bool
+	balCh          chan *balancer.Balancer
 }
 
+// AddFrontedServer adds a fronted server to the list.
+func (client *Client) AddFrontedServer(fs *frontedServer) error {
+	client.frontedServers = append(client.frontedServers, fs)
+	// TODO: Find the best way to add this server to the balancer list.
+	return nil
+}
+
+// NewClient creates a proxy client.
 func NewClient(addr string) *Client {
 	client := &Client{Addr: addr}
 
-	client.frontedServers = make([]*frontedServer, 0, 8)
+	client.frontedServers = make([]*frontedServer, 0, len(defaultFrontedServerList))
 
-	// TODO: How are we going to add more than one fronted servers?
-	client.frontedServers = append(client.frontedServers, &frontedServer{
-		Host: "roundrobin.getiantem.org",
-		Port: 443,
-	})
+	log.Printf("Adding %d domain fronted servers.", len(defaultFrontedServerList))
 
+	// Adding default fronted servers.
+	for _, fs := range defaultFrontedServerList {
+		log.Printf("Adding %s:%d.", fs.Host, fs.Port)
+		client.AddFrontedServer(&fs)
+	}
+
+	// Starting up balancer.
 	client.bal = client.initBalancer()
 
 	return client
 }
 
 func (client *Client) getBalancer() *balancer.Balancer {
-	// TODO
-	return client.bal
+	bal := <-client.balCh
+	client.balCh <- bal
+	return bal
 }
 
 func (client *Client) initBalancer() *balancer.Balancer {
@@ -51,6 +66,24 @@ func (client *Client) initBalancer() *balancer.Balancer {
 	}
 
 	bal := balancer.New(dialers...)
+
+	if client.balInitialized {
+		log.Printf("Draining balancer channel.")
+		old := <-client.balCh
+		// Close old balancer on a goroutine to avoid blocking here
+		go func() {
+			old.Close()
+			log.Printf("Closed old balancer.")
+		}()
+	} else {
+		log.Printf("Creating balancer channel.")
+		client.balCh = make(chan *balancer.Balancer, 1)
+	}
+
+	log.Printf("Publishing balancer.")
+
+	client.balCh <- bal
+	client.balInitialized = true
 
 	return bal
 }

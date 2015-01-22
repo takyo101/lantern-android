@@ -6,8 +6,10 @@ import (
 )
 
 var (
+	// ErrCouldNotCreateListener is returned when NewListener fails.
 	ErrCouldNotCreateListener = errors.New(`Could not create new listener.`)
-	ErrClosed                 = errors.New(`Server was manually closed.`)
+	// ErrClosed is returned when the server is closed.
+	ErrClosed = errors.New(`Server was manually closed.`)
 )
 
 // Listener is a wrapper around net.TCPListener that attempts to provide a

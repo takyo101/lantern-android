@@ -2,13 +2,14 @@ package client
 
 import (
 	"fmt"
-	"github.com/getlantern/balancer"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
+
+	"github.com/getlantern/balancer"
 )
 
 // Client is a HTTP proxy that accepts connections from local programs and
@@ -68,25 +69,25 @@ func (client *Client) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 
 // ListenAndServe spawns the HTTP proxy and makes it listen for incoming
 // connections.
-func (c *Client) ListenAndServe() (err error) {
-	addr := c.Addr
+func (client *Client) ListenAndServe() (err error) {
+	addr := client.Addr
 
 	if addr == "" {
 		addr = ":http"
 	}
 
-	if c.ln, err = NewListener(addr); err != nil {
+	if client.ln, err = NewListener(addr); err != nil {
 		return err
 	}
 
 	httpServer := &http.Server{
-		Addr:    c.Addr,
-		Handler: c,
+		Addr:    client.Addr,
+		Handler: client,
 	}
 
 	log.Printf("Starting proxy server at %s...", addr)
 
-	return httpServer.Serve(c.ln)
+	return httpServer.Serve(client.ln)
 }
 
 func targetQOS(req *http.Request) int {
@@ -125,9 +126,9 @@ func (client *Client) intercept(resp http.ResponseWriter, req *http.Request) {
 
 // Stop is currently not implemented but should make the listener stop
 // accepting new connections and then kill all active connections.
-func (c *Client) Stop() error {
+func (client *Client) Stop() error {
 	log.Printf("Stopping proxy server...")
-	return c.ln.Stop()
+	return client.ln.Stop()
 }
 
 func respondBadGateway(w io.Writer, msg string) error {
@@ -150,9 +151,8 @@ func hostIncludingPort(req *http.Request, defaultPort int) string {
 	_, port, err := net.SplitHostPort(req.Host)
 	if port == "" || err != nil {
 		return req.Host + ":" + strconv.Itoa(defaultPort)
-	} else {
-		return req.Host
 	}
+	return req.Host
 }
 
 // pipeData pipes data between the client and proxy connections.  It's also

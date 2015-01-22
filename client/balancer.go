@@ -1,8 +1,9 @@
 package client
 
 import (
-	"github.com/getlantern/balancer"
 	"log"
+
+	"github.com/getlantern/balancer"
 )
 
 func (client *Client) getBalancer() *balancer.Balancer {

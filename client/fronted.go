@@ -2,9 +2,10 @@ package client
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/getlantern/balancer"
 	"github.com/getlantern/fronted"
-	"log"
 )
 
 type frontedServer struct {

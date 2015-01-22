@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strconv"
-	"time"
 )
 
 // Client is a HTTP proxy that accepts connections from local programs and
@@ -18,7 +17,9 @@ type Client struct {
 	Addr           string
 	frontedServers []*frontedServer
 	ln             *Listener
-	bal            *balancer.Balancer
+
+	rpCh          chan *httputil.ReverseProxy
+	rpInitialized bool
 
 	balInitialized bool
 	balCh          chan *balancer.Balancer
@@ -46,76 +47,12 @@ func NewClient(addr string) *Client {
 	}
 
 	// Starting up balancer.
-	client.bal = client.initBalancer()
+	client.initBalancer()
+
+	// Starting reverse proxy
+	client.initReverseProxy()
 
 	return client
-}
-
-func (client *Client) getBalancer() *balancer.Balancer {
-	bal := <-client.balCh
-	client.balCh <- bal
-	return bal
-}
-
-func (client *Client) initBalancer() *balancer.Balancer {
-	dialers := make([]*balancer.Dialer, 0, len(client.frontedServers))
-
-	for _, s := range client.frontedServers {
-		dialer := s.dialer()
-		dialers = append(dialers, dialer)
-	}
-
-	bal := balancer.New(dialers...)
-
-	if client.balInitialized {
-		log.Printf("Draining balancer channel.")
-		old := <-client.balCh
-		// Close old balancer on a goroutine to avoid blocking here
-		go func() {
-			old.Close()
-			log.Printf("Closed old balancer.")
-		}()
-	} else {
-		log.Printf("Creating balancer channel.")
-		client.balCh = make(chan *balancer.Balancer, 1)
-	}
-
-	log.Printf("Publishing balancer.")
-
-	client.balCh <- bal
-	client.balInitialized = true
-
-	return bal
-}
-
-func (client *Client) getReverseProxy() *httputil.ReverseProxy {
-	rp := &httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			// do nothing
-		},
-		Transport: &http.Transport{
-			// We disable keepalives because some servers pretend to support
-			// keep-alives but close their connections immediately, which
-			// causes an error inside ReverseProxy.  This is not an issue
-			// for HTTPS because  the browser is responsible for handling
-			// the problem, which browsers like Chrome and Firefox already
-			// know to do.
-			//
-			// See https://code.google.com/p/go/issues/detail?id=4677
-			DisableKeepAlives: true,
-			// TODO: would be good to make this sensitive to QOS, which
-			// right now is only respected for HTTPS connections. The
-			// challenge is that ReverseProxy reuses connections for
-			// different requests, so we might have to configure different
-			// ReverseProxies for different QOS's or something like that.
-			Dial: client.bal.Dial,
-		},
-		// Set a FlushInterval to prevent overly aggressive buffering of
-		// responses, which helps keep memory usage down
-		FlushInterval: 250 * time.Millisecond,
-	}
-
-	return rp
 }
 
 // ServeHTTP implements the method from interface http.Handler using the latest

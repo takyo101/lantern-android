@@ -7,12 +7,14 @@ import (
 
 var (
 	ErrCouldNotCreateListener = errors.New(`Could not create new listener.`)
+	ErrClosed                 = errors.New(`Server was manually closed.`)
 )
 
 // Listener is a wrapper around net.TCPListener that attempts to provide a
 // Stop() function.
 type Listener struct {
 	*net.TCPListener
+	closed chan bool
 }
 
 // NewListener creates a wrapper around TCPListener
@@ -32,6 +34,7 @@ func NewListener(addr string) (wrap *Listener, err error) {
 
 	wrap = &Listener{
 		TCPListener: tli,
+		closed:      make(chan bool),
 	}
 
 	return wrap, nil
@@ -39,12 +42,20 @@ func NewListener(addr string) (wrap *Listener, err error) {
 
 // Accept returns the next connection to the listener.
 func (li *Listener) Accept() (net.Conn, error) {
-	return li.TCPListener.Accept()
+	for {
+		select {
+		case <-li.closed:
+			return nil, ErrClosed
+		default:
+			return li.TCPListener.Accept()
+		}
+	}
 }
 
-// Stop is currently not implemented but should make the listener stop
-// accepting new connections and then kill all active connections.
+// Stop makees the listener stop accepting new connections and then kills all
+// active connections.
 func (li *Listener) Stop() error {
-	// TODO
+	close(li.closed)
+	li.Close()
 	return nil
 }

@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"github.com/getlantern/balancer"
-	"github.com/getlantern/fronted"
 	"io"
 	"log"
 	"net"
@@ -12,31 +11,6 @@ import (
 	"strconv"
 	"time"
 )
-
-type frontedServer struct {
-	Host string
-	Port int
-}
-
-func (s *frontedServer) dialer() *balancer.Dialer {
-	fd := fronted.NewDialer(&fronted.Config{
-		Host: s.Host,
-		Port: s.Port,
-	})
-	masqueradeQualifier := ""
-	return &balancer.Dialer{
-		Label:  fmt.Sprintf("fronted proxy at %s:%d%s", s.Host, s.Port, masqueradeQualifier),
-		Weight: 1,
-		QOS:    0,
-		Dial:   fd.Dial,
-		OnClose: func() {
-			err := fd.Close()
-			if err != nil {
-				log.Printf("Unable to close fronted dialer: %s", err)
-			}
-		},
-	}
-}
 
 // Client is a HTTP proxy that accepts connections from local programs and
 // proxies these via remote flashlight servers.
@@ -189,7 +163,7 @@ func (c *Client) Stop() error {
 func respondBadGateway(w io.Writer, msg string) error {
 	log.Printf("Responding BadGateway: %v", msg)
 	resp := &http.Response{
-		StatusCode: 502,
+		StatusCode: http.StatusBadGateway,
 		ProtoMajor: 1,
 		ProtoMinor: 1,
 	}
@@ -231,7 +205,7 @@ func pipeData(clientConn net.Conn, connOut net.Conn, req *http.Request) {
 func respondOK(writer io.Writer, req *http.Request) error {
 	defer req.Body.Close()
 	resp := &http.Response{
-		StatusCode: 200,
+		StatusCode: http.StatusOK,
 		ProtoMajor: 1,
 		ProtoMinor: 1,
 	}

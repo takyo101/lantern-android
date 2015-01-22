@@ -157,7 +157,7 @@ func (client *Client) intercept(resp http.ResponseWriter, req *http.Request) {
 // accepting new connections and then kill all active connections.
 func (c *Client) Stop() error {
 	log.Printf("Stopping proxy server...")
-	return nil
+	return c.ln.Stop()
 }
 
 func respondBadGateway(w io.Writer, msg string) error {

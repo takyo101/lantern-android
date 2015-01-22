@@ -12,6 +12,10 @@ type frontedServer struct {
 	Port int
 }
 
+var defaultFrontedServerList = []frontedServer{
+	{"roundrobin.getiantem.org", 443},
+}
+
 // Wraps a fronted.Dialer with a balancer.Dialer.
 func (s *frontedServer) dialer() *balancer.Dialer {
 	fd := fronted.NewDialer(&fronted.Config{

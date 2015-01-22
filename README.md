@@ -127,8 +127,7 @@ import org.getlantern.example.R;
 
 public class MainActivity extends Activity {
 
-    private Thread proxyThread = null;
-    private Runnable proxyRunnable = null;
+
     private Button killButton;
     private Button startButton;
 
@@ -152,45 +151,29 @@ public class MainActivity extends Activity {
     }
 
     public void stopProxyButtonOnClick(View v) {
-        if (proxyThread.isAlive()) {
-            Log.v("DEBUG", "Attempt to stop running proxy.");
+
+        Log.v("DEBUG", "Attempt to stop running proxy.");
+        try {
             Flashlight.StopClientProxy();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        };
 
-            // Disabling stop button.
-            killButton.setEnabled(false);
+        // Disabling stop button.
+        killButton.setEnabled(false);
 
-            // Enabling proxy button.
-            startButton.setEnabled(true);
+        // Enabling proxy button.
+        startButton.setEnabled(true);
 
-            // Asking the thread to interrupt itself.
-            proxyThread.interrupt();
-            proxyThread = null;
-        }
     }
 
     public void startProxyButtonOnClick(View v) {
         Log.v("DEBUG", "Attempt to run client proxy on :9192");
 
-        if (proxyThread == null || proxyThread.isInterrupted()) {
-            proxyRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Log.v("DEBUG", "Running proxy...");
-                        Flashlight.RunClientProxy("0.0.0.0:9192");
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            };
-
-            // Creating a new thread so the UI does not block.
-            proxyThread = new Thread(proxyRunnable);
-
-            proxyThread.start();
-
-        } else {
-            Log.v("DEBUG", "Proxy is already running");
+        try {
+            Flashlight.RunClientProxy("0.0.0.0:9192");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
         // Enabling stop button.
@@ -237,10 +220,6 @@ You may not want everyone proxying through your phone! Tune the
 Note: The *stopProxyButton* is supposed to stop the flashlight proxy but this
 is currently not supported, so at this time *stopProxyButton* actually kills
 the app.
-
-## Building a stand-alone client binary for Android devices
-
-(pending)
 
 [1]: https://github.com/getlantern/flashlight
 [2]: https://www.docker.com/

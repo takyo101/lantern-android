@@ -8,22 +8,22 @@ import (
 	"strings"
 )
 
-var DefaultClient *client.Client
+var defaultClient *client.Client
 
 // StopClientProxy stops the proxy.
 func StopClientProxy() error {
-	DefaultClient.Stop()
+	defaultClient.Stop()
 	return nil
 }
 
 // RunClientProxy creates a new client at the given address.
 func RunClientProxy(listenAddr string) error {
 
-	DefaultClient = client.NewClient(listenAddr)
+	defaultClient = client.NewClient(listenAddr)
 
 	go func() {
 		var err error
-		if err = DefaultClient.ListenAndServe(); err != nil {
+		if err = defaultClient.ListenAndServe(); err != nil {
 			// Error is not exported: https://golang.org/src/net/net.go#L284
 			if !strings.Contains(err.Error(), "use of closed network connection") {
 				panic(err.Error())

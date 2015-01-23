@@ -12,6 +12,10 @@ import (
 	"github.com/getlantern/balancer"
 )
 
+const (
+	HttpConnectMethod = "CONNECT"
+)
+
 // Client is a HTTP proxy that accepts connections from local programs and
 // proxies these via remote flashlight servers.
 type Client struct {
@@ -60,7 +64,7 @@ func NewClient(addr string) *Client {
 // handler available from getHandler() and latest ReverseProxy available from
 // getReverseProxy().
 func (client *Client) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	if req.Method == "CONNECT" {
+	if req.Method == HttpConnectMethod {
 		client.intercept(resp, req)
 	} else {
 		client.getReverseProxy().ServeHTTP(resp, req)
@@ -91,6 +95,13 @@ func (client *Client) ListenAndServe() (err error) {
 }
 
 func targetQOS(req *http.Request) int {
+	requestedQOS := req.Header.Get(XFlashlightQOS)
+	if requestedQOS != "" {
+		rqos, err := strconv.Atoi(requestedQOS)
+		if err == nil {
+			return rqos
+		}
+	}
 	return 0
 }
 
@@ -98,7 +109,7 @@ func targetQOS(req *http.Request) int {
 // connetion and starts piping the data over a new net.Conn obtained from the
 // given dial function.
 func (client *Client) intercept(resp http.ResponseWriter, req *http.Request) {
-	if req.Method != "CONNECT" {
+	if req.Method != HttpConnectMethod {
 		panic("Intercept used for non-CONNECT request!")
 	}
 

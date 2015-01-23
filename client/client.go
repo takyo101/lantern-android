@@ -14,6 +14,7 @@ import (
 
 const (
 	HttpConnectMethod = "CONNECT"
+	XFlashlightQOS    = "X-Flashlight-QOS"
 )
 
 // Client is a HTTP proxy that accepts connections from local programs and

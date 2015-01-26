@@ -1,9 +1,6 @@
 package client
 
 import (
-	"crypto/x509"
-	"log"
-
 	"github.com/getlantern/fronted"
 )
 
@@ -12,15 +9,8 @@ const (
 )
 
 const (
-	defaultInsecureSkipVerify = false
-	defaultBufferRequest      = false
-	defaultDialTimeoutMillis  = 0
-	defaultRedialAttempts     = 2
-	defaultWeight             = 1000000
-	defaultQOS                = 10
+	defaultBufferRequest = false
 )
-
-var defaultCertPool *x509.CertPool
 
 // defaultFrontedServerList holds the list of fronted servers.
 var defaultFrontedServerList = []frontedServer{
@@ -33,16 +23,8 @@ var defaultFrontedServerList = []frontedServer{
 	},
 }
 
-// masqueradeSets holds a map of masquerades for fronted servers.
-var masqueradeSets = map[string][]*fronted.Masquerade{
+// defaultMasqueradeSets holds the default masquerades for fronted servers.
+var defaultMasqueradeSets = map[string][]*fronted.Masquerade{
 	// See masquerades.go
 	cloudflare: cloudflareMasquerades,
-}
-
-func init() {
-	// Populating defaultCertPool.
-	var err error
-	if defaultCertPool, err = getTrustedCertPool(); err != nil {
-		log.Printf("getTrustedCertPool: %q", err)
-	}
 }

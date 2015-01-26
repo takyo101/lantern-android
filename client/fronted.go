@@ -9,24 +9,34 @@ import (
 )
 
 type frontedServer struct {
-	Host          string
-	Port          int
-	MasqueradeSet string
-	QOS           int
-	Weight        int
+	Host               string
+	Port               int
+	MasqueradeSet      string
+	InsecureSkipVerify bool
+	DialTimeoutMillis  int
+	RedialAttempts     int
+	QOS                int
+	Weight             int
 }
 
 // Wraps a fronted.Dialer with a balancer.Dialer.
 func (s *frontedServer) dialer() *balancer.Dialer {
+
+	certPool, err := clientConfig.getTrustedCertPool()
+
+	if err != nil {
+		log.Fatalf("Could not get a pool of trusted CAs.")
+	}
+
 	fd := fronted.NewDialer(&fronted.Config{
 		Host:               s.Host,
 		Port:               s.Port,
-		Masquerades:        masqueradeSets[s.MasqueradeSet],
-		InsecureSkipVerify: defaultInsecureSkipVerify,
+		Masquerades:        clientConfig.Client.MasqueradeSets[s.MasqueradeSet],
+		InsecureSkipVerify: s.InsecureSkipVerify,
 		BufferRequests:     defaultBufferRequest,
-		DialTimeoutMillis:  defaultDialTimeoutMillis,
-		RedialAttempts:     defaultRedialAttempts,
-		RootCAs:            defaultCertPool,
+		DialTimeoutMillis:  s.DialTimeoutMillis,
+		RedialAttempts:     s.RedialAttempts,
+		RootCAs:            certPool,
 	})
 
 	masqueradeQualifier := ""

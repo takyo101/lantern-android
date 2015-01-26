@@ -16,7 +16,7 @@ func TestConfigParse(t *testing.T) {
 	var cfg *Config
 	var err error
 
-	if cfg, err = pullConfig(); err != nil {
+	if cfg, err = getConfig(); err != nil {
 		t.Fatal(err)
 	}
 

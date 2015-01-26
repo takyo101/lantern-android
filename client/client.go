@@ -13,14 +13,28 @@ import (
 )
 
 const (
-	HttpConnectMethod = "CONNECT"
-	XFlashlightQOS    = "X-Flashlight-QOS"
+	httpConnectMethod = "CONNECT"
+	xFlashlightQOS    = "X-Flashlight-QOS"
 )
+
+// clientConfig holds global configuration settings for all clients.
+var clientConfig *Config
+
+// init attempts to setup client configuration.
+func init() {
+	var err error
+	if clientConfig, err = getConfig(); err != nil {
+		// getConfig() guarantees to return a *Config struct, so we can log the
+		// error without stopping the program.
+		log.Printf("Error updating configuration over the network: %q.", err)
+	}
+}
 
 // Client is a HTTP proxy that accepts connections from local programs and
 // proxies these via remote flashlight servers.
 type Client struct {
-	Addr           string
+	Addr string
+
 	frontedServers []*frontedServer
 	ln             *Listener
 
@@ -42,12 +56,12 @@ func (client *Client) AddFrontedServer(fs *frontedServer) error {
 func NewClient(addr string) *Client {
 	client := &Client{Addr: addr}
 
-	client.frontedServers = make([]*frontedServer, 0, len(defaultFrontedServerList))
+	client.frontedServers = make([]*frontedServer, 0, len(clientConfig.Client.FrontedServers))
 
-	log.Printf("Adding %d domain fronted servers.", len(defaultFrontedServerList))
+	log.Printf("Adding %d domain fronted servers.", len(clientConfig.Client.FrontedServers))
 
-	// Adding default fronted servers.
-	for _, fs := range defaultFrontedServerList {
+	// Adding fronted servers.
+	for _, fs := range clientConfig.Client.FrontedServers {
 		log.Printf("Adding %s:%d.", fs.Host, fs.Port)
 		client.AddFrontedServer(&fs)
 	}
@@ -65,7 +79,7 @@ func NewClient(addr string) *Client {
 // handler available from getHandler() and latest ReverseProxy available from
 // getReverseProxy().
 func (client *Client) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	if req.Method == HttpConnectMethod {
+	if req.Method == httpConnectMethod {
 		client.intercept(resp, req)
 	} else {
 		client.getReverseProxy().ServeHTTP(resp, req)
@@ -96,7 +110,7 @@ func (client *Client) ListenAndServe() (err error) {
 }
 
 func targetQOS(req *http.Request) int {
-	requestedQOS := req.Header.Get(XFlashlightQOS)
+	requestedQOS := req.Header.Get(xFlashlightQOS)
 	if requestedQOS != "" {
 		rqos, err := strconv.Atoi(requestedQOS)
 		if err == nil {
@@ -110,7 +124,7 @@ func targetQOS(req *http.Request) int {
 // connetion and starts piping the data over a new net.Conn obtained from the
 // given dial function.
 func (client *Client) intercept(resp http.ResponseWriter, req *http.Request) {
-	if req.Method != HttpConnectMethod {
+	if req.Method != httpConnectMethod {
 		panic("Intercept used for non-CONNECT request!")
 	}
 

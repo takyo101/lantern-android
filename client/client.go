@@ -18,7 +18,7 @@ const (
 )
 
 // clientConfig holds global configuration settings for all clients.
-var clientConfig *Config
+var clientConfig *config
 
 // init attempts to setup client configuration.
 func init() {
@@ -36,20 +36,13 @@ type Client struct {
 	Addr string
 
 	frontedServers []*frontedServer
-	ln             *Listener
+	ln             net.Listener
 
 	rpCh          chan *httputil.ReverseProxy
 	rpInitialized bool
 
 	balInitialized bool
 	balCh          chan *balancer.Balancer
-}
-
-// AddFrontedServer adds a fronted server to the list.
-func (client *Client) AddFrontedServer(fs *frontedServer) error {
-	client.frontedServers = append(client.frontedServers, fs)
-	// TODO: Find the best way to add this server to the balancer list.
-	return nil
 }
 
 // NewClient creates a proxy client.
@@ -63,7 +56,7 @@ func NewClient(addr string) *Client {
 	// Adding fronted servers.
 	for _, fs := range clientConfig.Client.FrontedServers {
 		log.Printf("Adding %s:%d.", fs.Host, fs.Port)
-		client.AddFrontedServer(&fs)
+		client.frontedServers = append(client.frontedServers, &fs)
 	}
 
 	// Starting up balancer.
@@ -95,7 +88,7 @@ func (client *Client) ListenAndServe() (err error) {
 		addr = ":http"
 	}
 
-	if client.ln, err = NewListener(addr); err != nil {
+	if client.ln, err = net.Listen("tcp", addr); err != nil {
 		return err
 	}
 
@@ -154,7 +147,7 @@ func (client *Client) intercept(resp http.ResponseWriter, req *http.Request) {
 // accepting new connections and then kill all active connections.
 func (client *Client) Stop() error {
 	log.Printf("Stopping proxy server...")
-	return client.ln.Stop()
+	return client.ln.Close()
 }
 
 func respondBadGateway(w io.Writer, msg string) error {

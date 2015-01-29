@@ -17,20 +17,20 @@ type clientCfg struct {
 	MasqueradeSets map[string][]*fronted.Masquerade `yaml:"masqueradesets"`
 }
 
-// Config provides client configuration.
-type Config struct {
+// config provides client configuration.
+type config struct {
 	Client     clientCfg `yaml:"client"`
-	TrustedCAs []*CA     `yaml:"trustedcas"`
+	TrustedCAs []*ca     `yaml:"trustedcas"`
 }
 
 var (
-	// ErrFailedConfigRequest is returned when the server replies with a non-200
+	// errFailedConfigRequest is returned when the server replies with a non-200
 	// status code to our request for a configuration file.
-	ErrFailedConfigRequest = errors.New(`Could not get configuration file.`)
+	errFailedConfigRequest = errors.New(`Could not get configuration file.`)
 
-	// ErrInvalidConfiguration is returned in case the configuration file is
+	// errInvalidConfiguration is returned in case the configuration file is
 	// downloaded but has no useful data.
-	ErrInvalidConfiguration = errors.New(`Invalid configuration file.`)
+	errInvalidConfiguration = errors.New(`Invalid configuration file.`)
 )
 
 const (
@@ -51,7 +51,7 @@ func pullConfigFile() ([]byte, error) {
 
 	// Expecting 200 OK
 	if res.StatusCode != http.StatusOK {
-		return nil, ErrFailedConfigRequest
+		return nil, errFailedConfigRequest
 	}
 
 	// Using a gzip reader as we're getting a compressed file.
@@ -65,8 +65,8 @@ func pullConfigFile() ([]byte, error) {
 }
 
 // defaultConfig returns the embedded configuration.
-func defaultConfig() *Config {
-	cfg := &Config{
+func defaultConfig() *config {
+	cfg := &config{
 		Client: clientCfg{
 			FrontedServers: defaultFrontedServerList,
 			MasqueradeSets: defaultMasqueradeSets,
@@ -77,11 +77,11 @@ func defaultConfig() *Config {
 }
 
 // getConfig attempts to provide a
-func getConfig() (*Config, error) {
+func getConfig() (*config, error) {
 	var err error
 	var buf []byte
 
-	var cfg Config
+	var cfg config
 
 	// Attempt to download configuration file.
 	if buf, err = pullConfigFile(); err != nil {
@@ -98,10 +98,10 @@ func getConfig() (*Config, error) {
 		return &cfg, nil
 	}
 
-	return defaultConfig(), ErrInvalidConfiguration
+	return defaultConfig(), errInvalidConfiguration
 }
 
-func (c *Config) getTrustedCerts() []string {
+func (c *config) getTrustedCerts() []string {
 	certs := make([]string, 0, len(c.TrustedCAs))
 
 	for _, ca := range c.TrustedCAs {
@@ -111,7 +111,7 @@ func (c *Config) getTrustedCerts() []string {
 	return certs
 }
 
-func (c *Config) getTrustedCertPool() (certPool *x509.CertPool, err error) {
+func (c *config) getTrustedCertPool() (certPool *x509.CertPool, err error) {
 	trustedCerts := c.getTrustedCerts()
 
 	if certPool, err = keyman.PoolContainingCerts(trustedCerts...); err != nil {

@@ -1,20 +1,26 @@
 package client
 
 import (
+	"compress/gzip"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/getlantern/balancer"
+	"github.com/getlantern/flashlight/util"
 )
 
 const (
-	httpConnectMethod = "CONNECT"
-	xFlashlightQOS    = "X-Flashlight-QOS"
+	cloudConfigPollInterval = time.Second * 60
+	httpConnectMethod       = "CONNECT"
+	xFlashlightQOS          = "X-Flashlight-QOS"
 )
 
 // clientConfig holds global configuration settings for all clients.
@@ -33,39 +39,80 @@ func init() {
 // Client is a HTTP proxy that accepts connections from local programs and
 // proxies these via remote flashlight servers.
 type Client struct {
-	Addr string
+	addr string
+	cfg  config
 
-	frontedServers []*frontedServer
-	ln             net.Listener
+	ln net.Listener
 
 	rpCh          chan *httputil.ReverseProxy
 	rpInitialized bool
 
 	balInitialized bool
 	balCh          chan *balancer.Balancer
+	cfgMu          sync.RWMutex
+
+	active bool
 }
 
 // NewClient creates a proxy client.
 func NewClient(addr string) *Client {
-	client := &Client{Addr: addr}
+	client := &Client{addr: addr}
 
-	client.frontedServers = make([]*frontedServer, 0, len(clientConfig.Client.FrontedServers))
+	client.cfg = *clientConfig
+	client.reset()
 
-	log.Printf("Adding %d domain fronted servers.", len(clientConfig.Client.FrontedServers))
+	return client
+}
 
-	// Adding fronted servers.
-	for _, fs := range clientConfig.Client.FrontedServers {
-		log.Printf("Adding %s:%d.", fs.Host, fs.Port)
-		client.frontedServers = append(client.frontedServers, &fs)
-	}
+func (client *Client) reset() {
+	// We can only run one reset task at a time.
+	client.cfgMu.Lock()
+	defer client.cfgMu.Unlock()
 
 	// Starting up balancer.
 	client.initBalancer()
 
-	// Starting reverse proxy
+	// Starting reverse proxy.
 	client.initReverseProxy()
+}
 
-	return client
+func (client *Client) updateConfig() error {
+	var err error
+	var req *http.Request
+	var res *http.Response
+	var cli *http.Client
+
+	if cli, err = util.HTTPClient(cloudConfigCA, client.addr); err != nil {
+		return err
+	}
+
+	if req, err = http.NewRequest("GET", remoteConfigURL, nil); err != nil {
+		return err
+	}
+
+	if res, err = cli.Do(req); err != nil {
+		return err
+	}
+
+	// Expecting 200 OK
+	if res.StatusCode != http.StatusOK {
+		return errFailedConfigRequest
+	}
+
+	// Using a gzip reader as we're getting a compressed file.
+	var body io.ReadCloser
+	if body, err = gzip.NewReader(res.Body); err != nil {
+		return err
+	}
+	defer body.Close()
+
+	// Returning uncompressed bytes.
+	var buf []byte
+	if buf, err = ioutil.ReadAll(body); err != nil {
+		return err
+	}
+
+	return client.cfg.updateFrom(buf)
 }
 
 // ServeHTTP implements the method from interface http.Handler using the latest
@@ -79,10 +126,23 @@ func (client *Client) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (client *Client) pollConfiguration() {
+	for client.active {
+		// Attempt to self update.
+		var err error
+		if err = client.updateConfig(); err == nil {
+			// Configuration changed.
+			client.reset()
+		}
+		// Sleeping until next check.
+		time.Sleep(cloudConfigPollInterval)
+	}
+}
+
 // ListenAndServe spawns the HTTP proxy and makes it listen for incoming
 // connections.
 func (client *Client) ListenAndServe() (err error) {
-	addr := client.Addr
+	addr := client.addr
 
 	if addr == "" {
 		addr = ":http"
@@ -92,12 +152,20 @@ func (client *Client) ListenAndServe() (err error) {
 		return err
 	}
 
+	client.active = true
+
+	defer func() {
+		client.active = false
+	}()
+
 	httpServer := &http.Server{
-		Addr:    client.Addr,
+		Addr:    client.addr,
 		Handler: client,
 	}
 
 	log.Printf("Starting proxy server at %s...", addr)
+
+	go client.pollConfiguration()
 
 	return httpServer.Serve(client.ln)
 }

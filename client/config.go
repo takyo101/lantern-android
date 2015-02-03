@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 )
 
 type clientCfg struct {
@@ -31,9 +32,12 @@ var (
 	// errInvalidConfiguration is returned in case the configuration file is
 	// downloaded but has no useful data.
 	errInvalidConfiguration = errors.New(`Invalid configuration file.`)
+
+	errConfigurationUnchanged = errors.New(`Configuration remain unchanged.`)
 )
 
 const (
+	cloudConfigCA = ``
 	// URL of the configuration file. Remember to use HTTPs.
 	remoteConfigURL = `https://s3.amazonaws.com/lantern_config/cloud.1.6.0.yaml.gz`
 )
@@ -88,17 +92,32 @@ func getConfig() (*config, error) {
 		return defaultConfig(), err
 	}
 
-	// Attempt to parse configuration file.
-	if err = yaml.Unmarshal(buf, &cfg); err != nil {
+	if err = cfg.updateFrom(buf); err != nil {
 		return defaultConfig(), err
 	}
 
-	// Making sure we can actually use this configuration.
-	if len(cfg.Client.FrontedServers) > 0 && len(cfg.Client.MasqueradeSets) > 0 && len(cfg.TrustedCAs) > 0 {
-		return &cfg, nil
+	return &cfg, nil
+}
+
+func (c *config) updateFrom(buf []byte) error {
+	var err error
+	var newCfg config
+
+	// Attempt to parse configuration file.
+	if err = yaml.Unmarshal(buf, &newCfg); err != nil {
+		return err
 	}
 
-	return defaultConfig(), errInvalidConfiguration
+	// Making sure we can actually use this configuration.
+	if len(newCfg.Client.FrontedServers) > 0 && len(newCfg.Client.MasqueradeSets) > 0 && len(newCfg.TrustedCAs) > 0 {
+		if reflect.DeepEqual(newCfg, *c) {
+			return errConfigurationUnchanged
+		}
+		*c = newCfg
+		return nil
+	}
+
+	return errInvalidConfiguration
 }
 
 func (c *config) getTrustedCerts() []string {

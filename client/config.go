@@ -4,14 +4,26 @@ import (
 	"compress/gzip"
 	"crypto/x509"
 	"errors"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"reflect"
+	"time"
+
 	"github.com/getlantern/fronted"
 	"github.com/getlantern/keyman"
 	"github.com/getlantern/yaml"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"reflect"
 )
+
+const (
+	httpIfNoneMatch = "If-None-Match"
+	httpEtag        = "Etag"
+)
+
+var httpDefaultClient = &http.Client{Timeout: time.Second * 5}
+
+var lastCloudConfigETag string
 
 type clientCfg struct {
 	FrontedServers []frontedServer                  `yaml:"frontedservers"`
@@ -44,13 +56,32 @@ const (
 
 // pullConfigFile attempts to retrieve a configuration file over the network,
 // then it decompresses it and returns the file's raw bytes.
-func pullConfigFile() ([]byte, error) {
+func pullConfigFile(cli *http.Client) ([]byte, error) {
 	var err error
+	var req *http.Request
 	var res *http.Response
 
-	// Issuing a post request to download configuration file.
-	if res, err = http.Get(remoteConfigURL); err != nil {
+	if cli == nil {
+		return nil, errors.New("Missing HTTP client.")
+	}
+
+	if req, err = http.NewRequest("GET", remoteConfigURL, nil); err != nil {
 		return nil, err
+	}
+
+	if lastCloudConfigETag != "" {
+		// Don't bother fetching if unchanged.
+		req.Header.Set(httpIfNoneMatch, lastCloudConfigETag)
+	}
+
+	if res, err = cli.Do(req); err != nil {
+		return nil, err
+	}
+
+	// Has changed?
+	if res.StatusCode == http.StatusNotModified {
+		log.Printf("Configuration file has not changed since last pull.\n")
+		return nil, errConfigurationUnchanged
 	}
 
 	// Expecting 200 OK
@@ -58,13 +89,17 @@ func pullConfigFile() ([]byte, error) {
 		return nil, errFailedConfigRequest
 	}
 
+	// Saving ETAG
+	lastCloudConfigETag = res.Header.Get(httpEtag)
+
 	// Using a gzip reader as we're getting a compressed file.
 	var body io.ReadCloser
 	if body, err = gzip.NewReader(res.Body); err != nil {
 		return nil, err
 	}
+	defer body.Close()
 
-	// Returning uncompressed bytes.
+	// Uncompressing bytes.
 	return ioutil.ReadAll(body)
 }
 
@@ -88,7 +123,7 @@ func getConfig() (*config, error) {
 	var cfg config
 
 	// Attempt to download configuration file.
-	if buf, err = pullConfigFile(); err != nil {
+	if buf, err = pullConfigFile(httpDefaultClient); err != nil {
 		return defaultConfig(), err
 	}
 

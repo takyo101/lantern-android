@@ -1,10 +1,8 @@
 package client
 
 import (
-	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -20,7 +18,7 @@ import (
 const (
 	cloudConfigPollInterval = time.Second * 60
 	httpConnectMethod       = "CONNECT"
-	xFlashlightQOS          = "X-Flashlight-QOS"
+	httpXFlashlightQOS      = "X-Flashlight-QOS"
 )
 
 // clientConfig holds global configuration settings for all clients.
@@ -29,6 +27,8 @@ var clientConfig *config
 // init attempts to setup client configuration.
 func init() {
 	var err error
+	// Initial attempt to get configuration, without a proxy. If this request
+	// fails we'll use the default configuration.
 	if clientConfig, err = getConfig(); err != nil {
 		// getConfig() guarantees to return a *Config struct, so we can log the
 		// error without stopping the program.
@@ -51,7 +51,7 @@ type Client struct {
 	balCh          chan *balancer.Balancer
 	cfgMu          sync.RWMutex
 
-	active bool
+	closed chan bool
 }
 
 // NewClient creates a proxy client.
@@ -59,12 +59,12 @@ func NewClient(addr string) *Client {
 	client := &Client{addr: addr}
 
 	client.cfg = *clientConfig
-	client.reset()
+	client.reloadConfig()
 
 	return client
 }
 
-func (client *Client) reset() {
+func (client *Client) reloadConfig() {
 	// We can only run one reset task at a time.
 	client.cfgMu.Lock()
 	defer client.cfgMu.Unlock()
@@ -76,39 +76,18 @@ func (client *Client) reset() {
 	client.initReverseProxy()
 }
 
+// updateConfig attempts to pull a configuration file from the network using
+// the client proxy itself.
 func (client *Client) updateConfig() error {
 	var err error
-	var req *http.Request
-	var res *http.Response
+	var buf []byte
 	var cli *http.Client
 
 	if cli, err = util.HTTPClient(cloudConfigCA, client.addr); err != nil {
 		return err
 	}
 
-	if req, err = http.NewRequest("GET", remoteConfigURL, nil); err != nil {
-		return err
-	}
-
-	if res, err = cli.Do(req); err != nil {
-		return err
-	}
-
-	// Expecting 200 OK
-	if res.StatusCode != http.StatusOK {
-		return errFailedConfigRequest
-	}
-
-	// Using a gzip reader as we're getting a compressed file.
-	var body io.ReadCloser
-	if body, err = gzip.NewReader(res.Body); err != nil {
-		return err
-	}
-	defer body.Close()
-
-	// Returning uncompressed bytes.
-	var buf []byte
-	if buf, err = ioutil.ReadAll(body); err != nil {
+	if buf, err = pullConfigFile(cli); err != nil {
 		return err
 	}
 
@@ -126,17 +105,28 @@ func (client *Client) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// pollConfiguration periodically checks for updates in the cloud configuration
+// file.
 func (client *Client) pollConfiguration() {
-	for client.active {
-		// Attempt to self update.
-		var err error
-		if err = client.updateConfig(); err == nil {
-			// Configuration changed.
-			client.reset()
+	pollTimer := time.NewTimer(cloudConfigPollInterval)
+	defer pollTimer.Stop()
+
+	for {
+		select {
+		case <-client.closed:
+			return
+		case <-pollTimer.C:
+			// Attempt to update configuration.
+			var err error
+			if err = client.updateConfig(); err == nil {
+				// Configuration changed, lets reload.
+				client.reloadConfig()
+			}
+			// Sleeping 'till next pull.
+			pollTimer.Reset(cloudConfigPollInterval)
 		}
-		// Sleeping until next check.
-		time.Sleep(cloudConfigPollInterval)
 	}
+
 }
 
 // ListenAndServe spawns the HTTP proxy and makes it listen for incoming
@@ -152,10 +142,10 @@ func (client *Client) ListenAndServe() (err error) {
 		return err
 	}
 
-	client.active = true
+	client.closed = make(chan bool)
 
 	defer func() {
-		client.active = false
+		close(client.closed)
 	}()
 
 	httpServer := &http.Server{
@@ -171,7 +161,7 @@ func (client *Client) ListenAndServe() (err error) {
 }
 
 func targetQOS(req *http.Request) int {
-	requestedQOS := req.Header.Get(xFlashlightQOS)
+	requestedQOS := req.Header.Get(httpXFlashlightQOS)
 	if requestedQOS != "" {
 		rqos, err := strconv.Atoi(requestedQOS)
 		if err == nil {
